@@ -3,683 +3,294 @@ import "./App.css";
 
 const API_URL = "http://localhost:5000";
 
-const COURSES = [
+const plans = [
   {
-    id: "video-001",
-    title: "Introduction to Programming",
-    category: "Programming",
-    level: "Beginner",
-    premium: false,
-    videoUrl:
-      "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    name: "Bronze",
+    price: 199,
+    features: [
+      "Basic video access",
+      "1 download per day",
+      "Standard video quality",
+    ],
   },
   {
-    id: "video-002",
-    title: "Data Structures and Algorithms",
-    category: "Computer Science",
-    level: "Intermediate",
-    premium: true,
-    videoUrl:
-      "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    name: "Silver",
+    price: 399,
+    features: [
+      "Standard video access",
+      "5 downloads per day",
+      "HD video quality",
+    ],
   },
   {
-    id: "video-003",
-    title: "Web Development Fundamentals",
-    category: "Web Development",
-    level: "Beginner",
-    premium: true,
-    videoUrl:
-      "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-  },
-  {
-    id: "video-004",
-    title: "Advanced JavaScript",
-    category: "Programming",
-    level: "Advanced",
-    premium: true,
-    videoUrl:
-      "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    name: "Gold",
+    price: 699,
+    features: [
+      "All video access",
+      "10 downloads per day",
+      "Full HD video quality",
+      "Premium content",
+    ],
   },
 ];
 
 function App() {
-  const [plans, setPlans] = useState([]);
-  const [selectedPlan, setSelectedPlan] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState("");
   const [message, setMessage] = useState("");
 
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [watchedMinutes, setWatchedMinutes] = useState(0);
-  const [watching, setWatching] = useState(false);
-
-  const userId = "demo-user-001";
-
-  // ================= LOAD PLANS =================
-
   useEffect(() => {
-    fetch(`${API_URL}/api/plans`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load plans");
-        }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
 
-        return response.json();
-      })
-      .then((data) => {
-        setPlans(data.plans || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Unable to load plans. Please check the backend.");
-        setLoading(false);
-      });
-  }, []);
+    script.onload = () => {
+      console.log("Razorpay loaded");
+    };
 
-  // ================= PLAN SELECTION =================
+    script.onerror = () => {
+      console.error("Razorpay failed to load");
+    };
 
-  const handlePlanSelect = (planName) => {
-    setSelectedPlan(planName);
-    setMessage(`${planName} plan selected successfully.`);
-  };
-
-  // ================= DOWNLOAD =================
-
-  const handleDownload = async (course) => {
-    if (!selectedPlan) {
-      setMessage("Please select a subscription plan first.");
-      return;
-    }
-
-    const selectedPlanData = plans.find(
-      (plan) => plan.name === selectedPlan
-    );
-
-    if (!selectedPlanData) {
-      setMessage("Selected plan information is not available.");
-      return;
-    }
-
-    if (course.premium && !selectedPlanData.premiumVideos) {
-      setMessage(`${course.title} requires a premium subscription.`);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/download`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId,
-          plan: selectedPlan,
-          videoId: course.id,
-          videoTitle: course.title,
-          fileSize: 0,
-          thumbnail: "",
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setMessage(data.message || "Download failed.");
-        return;
-      }
-
-      setMessage(
-        `${course.title} downloaded successfully. Remaining: ${data.remaining}`
-      );
-    } catch (err) {
-      console.error(err);
-      setMessage("Unable to connect to the backend.");
-    }
-  };
-
-  // ================= RECORD WATCH TIME =================
-
-  const recordWatchTime = async (minutes) => {
-    if (
-      !selectedCourse ||
-      !selectedPlan ||
-      minutes <= 0
-    ) {
-      return;
-    }
-
-    const selectedPlanData = plans.find(
-      (plan) => plan.name === selectedPlan
-    );
-
-    if (!selectedPlanData) {
-      return;
-    }
-
-    const remaining = Math.max(
-      selectedPlanData.watchTime - watchedMinutes,
-      0
-    );
-
-    if (remaining <= 0) {
-      setMessage(
-        `${selectedPlan} plan watch-time limit reached.`
-      );
-
-      setWatching(false);
-      return;
-    }
-
-    const minutesToSend = Math.min(minutes, remaining);
-
-    try {
-      console.log("Sending watch time:", {
-        userId,
-        plan: selectedPlan,
-        videoId: selectedCourse.id,
-        minutes: minutesToSend,
-      });
-
-      const response = await fetch(`${API_URL}/api/watch`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId,
-          plan: selectedPlan,
-          videoId: selectedCourse.id,
-          minutes: minutesToSend,
-        }),
-      });
-
-      const data = await response.json();
-
-      console.log("WATCH RESPONSE:", data);
-
-      if (!response.ok) {
-        setMessage(
-          data.message || "Watch-time limit reached."
-        );
-
-        setWatching(false);
-        return;
-      }
-
-      setWatchedMinutes(Number(data.watched) || 0);
-
-      setMessage(
-        `Watching ${selectedCourse.title} • ${data.remaining} minutes remaining`
-      );
-
-      if (data.remaining <= 0) {
-        setWatching(false);
-
-        setMessage(
-          `${selectedPlan} plan watch-time limit reached.`
-        );
-      }
-    } catch (err) {
-      console.error("WATCH TIME ERROR:", err);
-
-      setMessage("Unable to record watch time.");
-    }
-  };
-
-  // ================= AUTOMATIC WATCH-TIME TRACKING =================
-
-  useEffect(() => {
-    if (
-      !watching ||
-      !selectedCourse ||
-      !selectedPlan
-    ) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      recordWatchTime(1);
-    }, 60000);
+    document.body.appendChild(script);
 
     return () => {
-      clearInterval(timer);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
-  }, [
-    watching,
-    selectedCourse,
-    selectedPlan,
-    watchedMinutes,
-  ]);
+  }, []);
 
-  // ================= WATCH COURSE =================
+  async function buyPlan(plan) {
+    try {
+      setLoading(plan.name);
+      setMessage("");
 
-  const handleWatch = (course) => {
-    if (!selectedPlan) {
-      setMessage("Please select a subscription plan first.");
-      return;
-    }
+      if (!window.Razorpay) {
+        setMessage("Razorpay is still loading. Please try again.");
+        setLoading("");
+        return;
+      }
 
-    const selectedPlanData = plans.find(
-      (plan) => plan.name === selectedPlan
-    );
-
-    if (!selectedPlanData) {
-      setMessage(
-        "Selected plan information is not available."
+      const response = await fetch(
+        `${API_URL}/api/subscription/create-order`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: "testuser",
+            plan: plan.name,
+          }),
+        }
       );
-      return;
+
+      const data = await response.json();
+
+      console.log("Razorpay response:", data);
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error ||
+            data.message ||
+            "Unable to create Razorpay order"
+        );
+      }
+
+      const options = {
+        key: data.keyId,
+        amount: data.order.amount,
+        currency: data.order.currency,
+        name: "LearnHub",
+        description: `${plan.name} Subscription`,
+        order_id: data.order.id,
+
+        handler: function (payment) {
+          console.log("Payment successful:", payment);
+
+          setMessage(
+            `${plan.name} payment successful! Payment ID: ${payment.razorpay_payment_id}`
+          );
+
+          setLoading("");
+        },
+
+        modal: {
+          ondismiss: function () {
+            setLoading("");
+            setMessage("Payment window closed.");
+          },
+        },
+
+        theme: {
+          color: "#6366f1",
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+
+      razorpay.on("payment.failed", function (response) {
+        console.error("Payment failed:", response);
+
+        setMessage(
+          response.error?.description ||
+            "Payment failed. Please try again."
+        );
+
+        setLoading("");
+      });
+
+      razorpay.open();
+    } catch (error) {
+      console.error("Payment error:", error);
+
+      setMessage(error.message || "Something went wrong.");
+
+      setLoading("");
     }
-
-    if (
-      course.premium &&
-      !selectedPlanData.premiumVideos
-    ) {
-      setMessage(
-        `${course.title} requires a premium subscription.`
-      );
-      return;
-    }
-
-    const remaining = Math.max(
-      selectedPlanData.watchTime - watchedMinutes,
-      0
-    );
-
-    if (remaining <= 0) {
-      setMessage(
-        `${selectedPlan} plan watch-time limit reached.`
-      );
-      return;
-    }
-
-    setSelectedCourse(course);
-    setMessage("");
-  };
-
-  // ================= CLOSE VIDEO =================
-
-  const handleCloseVideo = () => {
-    setWatching(false);
-    setSelectedCourse(null);
-  };
-
-  // ================= VIDEO ENDED =================
-
-  const handleVideoEnded = async () => {
-    console.log("VIDEO ENDED - recording 1 minute");
-
-    setWatching(false);
-
-    // The test video is only 5 seconds long.
-    // The backend records watch time in minutes,
-    // so send 1 minute when the test video finishes.
-    await recordWatchTime(1);
-  };
-
-  // ================= UI =================
+  }
 
   return (
     <div className="app">
 
-      {/* ================= HEADER ================= */}
+      {/* NAVBAR */}
+      <header className="header">
+        <div className="logo">
+          Learn<span>Hub</span>
+        </div>
 
-      <header className="hero">
-        <h1>LEARNHUB</h1>
-        <h2>Video Learning Platform</h2>
-        <p>Learn. Watch. Grow.</p>
+        <nav>
+          <a href="#home">Home</a>
+          <a href="#video">Video</a>
+          <a href="#plans">Plans</a>
+        </nav>
       </header>
 
-      <main>
+      {/* HERO */}
+      <section className="hero" id="home">
+        <div className="hero-content">
 
-        {/* ================= PLANS ================= */}
+          <p className="eyebrow">
+            ONLINE LEARNING PLATFORM
+          </p>
 
-        <h2 className="choose-title">
-          Choose Your Plan
+          <h1>
+            Learn smarter.
+            <br />
+            <span>Grow faster.</span>
+          </h1>
+
+          <p className="hero-text">
+            LearnHub is your modern video-learning platform
+            for courses, videos and educational content.
+          </p>
+
+          <a href="#plans" className="hero-button">
+            View Learning Plans
+          </a>
+
+        </div>
+      </section>
+
+      {/* VIDEO */}
+      <section className="video-section" id="video">
+
+        <p className="section-label">
+          FEATURED LESSON
+        </p>
+
+        <h2>
+          Introduction to Modern Web Development
         </h2>
 
-        {loading && (
-          <p className="status">
-            Loading plans...
-          </p>
-        )}
+        <p className="video-description">
+          Watch our sample lesson and explore the LearnHub
+          learning experience.
+        </p>
 
-        {error && (
-          <p className="error">
-            {error}
-          </p>
-        )}
+        <video
+          className="video"
+          controls
+          preload="metadata"
+          src="/video.mp4"
+        />
 
-        {!loading && !error && (
-          <div className="plans-container">
+      </section>
 
-            {plans.map((plan) => {
-              const isSelected =
-                selectedPlan === plan.name;
+      {/* SUBSCRIPTIONS */}
+      <section className="plans-section" id="plans">
 
-              return (
-                <div
-                  className={`plan-card ${
-                    isSelected ? "selected" : ""
-                  }`}
-                  key={plan.name}
-                >
+        <p className="section-label">
+          SUBSCRIPTIONS
+        </p>
 
-                  <h3>{plan.name}</h3>
+        <h2>
+          Choose your learning plan
+        </h2>
 
-                  <div className="price">
-                    ₹{plan.price}
-                  </div>
+        <p className="section-description">
+          Select the plan that fits your learning needs.
+        </p>
 
-                  <p>
-                    <strong>
-                      Video Quality:
-                    </strong>{" "}
-                    {plan.videoQuality}
-                  </p>
+        <div className="plans-container">
 
-                  <p>
-                    <strong>
-                      Watch Time:
-                    </strong>{" "}
-                    {plan.watchTime} minutes
-                  </p>
+          {plans.map((plan) => (
+            <div
+              className={`plan-card ${plan.name.toLowerCase()}`}
+              key={plan.name}
+            >
 
-                  <p>
-                    <strong>
-                      Downloads:
-                    </strong>{" "}
-                    {plan.downloadLimit} per day
-                  </p>
+              <div className="plan-top">
+                <h3>{plan.name}</h3>
 
-                  <p>
-                    <strong>
-                      Validity:
-                    </strong>{" "}
-                    {plan.validityDays
-                      ? `${plan.validityDays} days`
-                      : "Free"}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Ads:
-                    </strong>{" "}
-                    {plan.ads
-                      ? "Supported"
-                      : "No Ads"}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Offline Downloads:
-                    </strong>{" "}
-                    {plan.offlineDownloads
-                      ? "Yes"
-                      : "No"}
-                  </p>
-
-                  <ul>
-                    {(plan.features || []).map(
-                      (feature, index) => (
-                        <li key={index}>
-                          {feature}
-                        </li>
-                      )
-                    )}
-                  </ul>
-
-                  <label className="select-plan">
-
-                    <input
-                      type="radio"
-                      name="subscription"
-                      value={plan.name}
-                      checked={isSelected}
-                      onChange={() =>
-                        handlePlanSelect(plan.name)
-                      }
-                    />
-
-                    <span>
-                      {isSelected
-                        ? `Selected ${plan.name}`
-                        : `Select ${plan.name}`}
-                    </span>
-
-                  </label>
-
+                <div className="price">
+                  ₹{plan.price}
+                  <span>/month</span>
                 </div>
-              );
-            })}
+              </div>
 
-          </div>
-        )}
+              <ul>
+                {plan.features.map((feature) => (
+                  <li key={feature}>
+                    <span className="check">✓</span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
 
-        {/* ================= SELECTED PLAN ================= */}
+              <button
+                className="plan-button"
+                onClick={() => buyPlan(plan)}
+                disabled={loading !== ""}
+              >
+                {loading === plan.name
+                  ? "Opening Razorpay..."
+                  : `Choose ${plan.name}`}
+              </button>
 
-        {selectedPlan && (
-          <p className="status">
-            Selected Plan:{" "}
-            <strong>
-              {selectedPlan}
-            </strong>
-          </p>
-        )}
+            </div>
+          ))}
 
-        {/* ================= MESSAGE ================= */}
+        </div>
 
         {message && (
-          <p className="status">
+          <div className="payment-message">
             {message}
-          </p>
-        )}
-
-        {/* ================= VIDEO PLAYER ================= */}
-
-        {selectedCourse && (
-          <section className="video-player-section">
-
-            <h2 className="choose-title">
-              ▶ Now Watching
-            </h2>
-
-            <h3>
-              {selectedCourse.title}
-            </h3>
-
-            {(() => {
-              const selectedPlanData =
-                plans.find(
-                  (plan) =>
-                    plan.name === selectedPlan
-                );
-
-              const remainingMinutes =
-                selectedPlanData
-                  ? Math.max(
-                      selectedPlanData.watchTime -
-                        watchedMinutes,
-                      0
-                    )
-                  : 0;
-
-              return (
-                <>
-                  <p className="status">
-                    Watch time remaining:{" "}
-                    <strong>
-                      {remainingMinutes} minutes
-                    </strong>
-                  </p>
-
-                  {remainingMinutes > 0 ? (
-                    <video
-                      controls
-                      width="800"
-                      src={selectedCourse.videoUrl}
-
-                      onPlay={() => {
-                        setWatching(true);
-
-                        setMessage(
-                          "Video is playing..."
-                        );
-                      }}
-
-                      onPause={() => {
-                        setWatching(false);
-                      }}
-
-                      onEnded={handleVideoEnded}
-                    >
-                      Your browser does not
-                      support the video player.
-                    </video>
-                  ) : (
-                    <p className="error">
-                      Your watch-time limit
-                      has been reached.
-                    </p>
-                  )}
-
-                  <br />
-
-                  <button
-                    className="download-btn"
-                    onClick={handleCloseVideo}
-                  >
-                    Close Video
-                  </button>
-                </>
-              );
-            })()}
-
-          </section>
-        )}
-
-        {/* ================= COURSES ================= */}
-
-        <section className="courses-section">
-
-          <h2 className="choose-title">
-            Available Courses
-          </h2>
-
-          <p className="course-subtitle">
-            Choose a course and start learning.
-          </p>
-
-          <div className="courses-container">
-
-            {COURSES.map((course) => {
-
-              const selectedPlanData =
-                plans.find(
-                  (plan) =>
-                    plan.name === selectedPlan
-                );
-
-              const locked =
-                course.premium &&
-                (!selectedPlanData ||
-                  !selectedPlanData.premiumVideos);
-
-              return (
-                <div
-                  className={`course-card ${
-                    locked ? "locked" : ""
-                  }`}
-                  key={course.id}
-                >
-
-                  <div className="course-icon">
-                    🎥
-                  </div>
-
-                  <h3>
-                    {course.title}
-                  </h3>
-
-                  <p>
-                    <strong>
-                      Category:
-                    </strong>{" "}
-                    {course.category}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Level:
-                    </strong>{" "}
-                    {course.level}
-                  </p>
-
-                  <p>
-                    <strong>
-                      Access:
-                    </strong>{" "}
-                    {course.premium
-                      ? "Premium"
-                      : "Free"}
-                  </p>
-
-                  {/* ================= LOCKED ================= */}
-
-                  {locked && (
-                    <p className="locked-text">
-                      🔒 Premium plan required
-                    </p>
-                  )}
-
-                  {/* ================= WATCH + DOWNLOAD ================= */}
-
-                  {!locked && (
-                    <>
-                      <button
-                        className="download-btn"
-                        onClick={() =>
-                          handleWatch(course)
-                        }
-                      >
-                        ▶ Watch
-                      </button>
-
-                      <button
-                        className="download-btn"
-                        onClick={() =>
-                          handleDownload(course)
-                        }
-                      >
-                        Download
-                      </button>
-                    </>
-                  )}
-
-                  {/* ================= UPGRADE ================= */}
-
-                  {locked && (
-                    <button
-                      className="download-btn"
-                      onClick={() =>
-                        setMessage(
-                          "Please select a premium plan to access this course."
-                        )
-                      }
-                    >
-                      Upgrade Plan
-                    </button>
-                  )}
-
-                </div>
-              );
-            })}
-
           </div>
+        )}
 
-        </section>
+      </section>
 
-      </main>
+      {/* FOOTER */}
+      <footer>
+        <div className="footer-logo">
+          Learn<span>Hub</span>
+        </div>
+
+        <p>
+          Modern video-learning platform.
+        </p>
+      </footer>
 
     </div>
   );
