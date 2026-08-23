@@ -4,6 +4,14 @@ const crypto = require("crypto");
 const dotenv = require("dotenv");
 const Razorpay = require("razorpay");
 
+const { collectLoginInfo } = require("./security");
+
+const auth = require("./auth");
+const registerUser = auth.registerUser;
+const loginUser = auth.loginUser;
+const getAuthUser = auth.getAuthUser;
+const getLoginHistory = auth.getLoginHistory;
+
 dotenv.config();
 
 const app = express();
@@ -170,6 +178,7 @@ function getUser(userId) {
 downloads: 0,
 downloadDate: getToday(),
 videos: [],
+
 
 // Watch time
 watchMinutes: 0,
@@ -1056,6 +1065,120 @@ app.get("/api/health", (req, res) => {
     razorpayConfigured: Boolean(razorpay),
     time: new Date().toISOString(),
   });
+});
+
+// ======================================================
+// AUTHENTICATION ROUTES
+// ======================================================
+
+// REGISTER
+app.post("/api/auth/register", (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const result = registerUser({ name, email, password });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(201).json(result);
+  } catch (error) {
+    console.error("REGISTER ROUTE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to register user.",
+      error: error.message,
+    });
+  }
+});
+
+// LOGIN
+app.post("/api/auth/login", (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const ip =
+      req.headers["x-forwarded-for"] ||
+      req.socket.remoteAddress ||
+      "Unknown";
+
+    const userAgent = req.headers["user-agent"] || "Unknown";
+
+    const result = loginUser({
+      email,
+      password,
+      ip,
+      userAgent,
+    });
+
+    if (!result.success) {
+      return res.status(401).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("LOGIN ROUTE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to login.",
+      error: error.message,
+    });
+  }
+});
+
+// GET AUTHENTICATED USER
+app.get("/api/auth/user/:email", (req, res) => {
+  try {
+    const { email } = req.params;
+
+    const user = getAuthUser(email);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error("GET AUTH USER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to get user information.",
+      error: error.message,
+    });
+  }
+});
+
+// GET LOGIN HISTORY
+app.get("/api/auth/login-history/:email", (req, res) => {
+  try {
+    const { email } = req.params;
+
+    const history = getLoginHistory(email);
+
+    return res.status(200).json({
+      success: true,
+      email,
+      loginHistory: history,
+    });
+  } catch (error) {
+    console.error("LOGIN HISTORY ROUTE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to get login history.",
+      error: error.message,
+    });
+  }
 });
 
 // ======================================================

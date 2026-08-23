@@ -3,42 +3,30 @@ import "./App.css";
 
 const API_URL = "http://localhost:5000";
 
-const plans = [
-  {
-    name: "Bronze",
-    price: 199,
-    features: [
-      "Basic video access",
-      "1 download per day",
-      "Standard video quality",
-    ],
-  },
-  {
-    name: "Silver",
-    price: 399,
-    features: [
-      "Standard video access",
-      "5 downloads per day",
-      "HD video quality",
-    ],
-  },
-  {
-    name: "Gold",
-    price: 699,
-    features: [
-      "All video access",
-      "10 downloads per day",
-      "Full HD video quality",
-      "Premium content",
-    ],
-  },
-];
-
 function App() {
+  const [page, setPage] = useState("home");
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState("");
   const [message, setMessage] = useState("");
 
-  // Load Razorpay
+  useEffect(() => {
+    fetch(`${API_URL}/api/plans`)
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Plans from backend:", data);
+
+        if (data.success) {
+          setPlans(data.plans);
+        } else {
+          setMessage("Unable to load plans.");
+        }
+      })
+      .catch((error) => {
+        console.error("Plans error:", error);
+        setMessage("Backend connection failed.");
+      });
+  }, []);
+
   useEffect(() => {
     const script = document.createElement("script");
 
@@ -54,22 +42,23 @@ function App() {
     };
   }, []);
 
-  // Buy subscription plan
   async function buyPlan(plan) {
     try {
       setLoading(plan.name);
       setMessage("");
 
-      // Check Razorpay
-      if (!window.Razorpay) {
-        setMessage(
-          "Razorpay is still loading. Please try again."
-        );
+      if (plan.price === 0) {
+        setMessage("Free plan selected successfully!");
         setLoading("");
         return;
       }
 
-      // Create Razorpay order
+      if (!window.Razorpay) {
+        setMessage("Razorpay is still loading. Please try again.");
+        setLoading("");
+        return;
+      }
+
       const response = await fetch(
         `${API_URL}/api/subscription/create-order`,
         {
@@ -86,8 +75,6 @@ function App() {
 
       const data = await response.json();
 
-      console.log("Razorpay order:", data);
-
       if (!response.ok || !data.success) {
         throw new Error(
           data.error ||
@@ -96,178 +83,84 @@ function App() {
         );
       }
 
-      // Razorpay checkout options
       const options = {
         key: data.keyId,
         amount: data.order.amount,
         currency: data.order.currency,
-
         name: "LearnHub",
         description: `${plan.name} Subscription`,
-
         order_id: data.order.id,
 
-        // PAYMENT SUCCESS
-       handler: async function (payment) {
-  try {
-    console.log("Payment successful:", payment);
-
-    const verifyResponse = await fetch(
-      `${API_URL}/api/subscription/verify-payment`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: "testuser",
-          razorpay_order_id: payment.razorpay_order_id,
-          razorpay_payment_id: payment.razorpay_payment_id,
-          razorpay_signature: payment.razorpay_signature,
-        }),
-      }
-    );
-
-    const verifyData = await verifyResponse.json();
-
-    console.log("Payment verification:", verifyData);
-
-    if (!verifyResponse.ok || !verifyData.success) {
-      throw new Error(
-        verifyData.message || "Payment verification failed."
-      );
-    }
-
-    setMessage(
-      `${plan.name} subscription activated successfully!`
-    );
-
-    setLoading("");
-  } catch (error) {
-    console.error("Verification error:", error);
-
-    setMessage(
-      error.message || "Payment verification failed."
-    );
-
-    setLoading("");
-  }
-},
-
-            // Verify payment with backend
+        handler: async function (payment) {
+          try {
             const verifyResponse = await fetch(
               `${API_URL}/api/subscription/verify-payment`,
               {
                 method: "POST",
-
                 headers: {
                   "Content-Type": "application/json",
                 },
-
                 body: JSON.stringify({
                   userId: "testuser",
-
-                  razorpay_order_id:
-                    payment.razorpay_order_id,
-
-                  razorpay_payment_id:
-                    payment.razorpay_payment_id,
-
-                  razorpay_signature:
-                    payment.razorpay_signature,
+                  razorpay_order_id: payment.razorpay_order_id,
+                  razorpay_payment_id: payment.razorpay_payment_id,
+                  razorpay_signature: payment.razorpay_signature,
                 }),
               }
             );
 
-            const verifyData =
-              await verifyResponse.json();
+            const verifyData = await verifyResponse.json();
 
-            console.log(
-              "Payment verification:",
-              verifyData
-            );
-
-            // Verification failed
-            if (
-              !verifyResponse.ok ||
-              !verifyData.success
-            ) {
+            if (!verifyResponse.ok || !verifyData.success) {
               throw new Error(
-                verifyData.message ||
-                  "Payment verification failed."
+                verifyData.message || "Payment verification failed."
               );
             }
 
-            // Verification successful
             setMessage(
               `${plan.name} subscription activated successfully!`
             );
-
-            setLoading("");
           } catch (error) {
-            console.error(
-              "Verification error:",
-              error
-            );
-
+            console.error(error);
             setMessage(
-              error.message ||
-                "Payment verification failed."
+              error.message || "Payment verification failed."
             );
-
-            setLoading("");
           }
+
+          setLoading("");
         },
 
-        // Razorpay window closed
         modal: {
           ondismiss: function () {
             setLoading("");
-            setMessage(
-              "Payment window closed."
-            );
+            setMessage("Payment window closed.");
           },
         },
 
-        // Razorpay theme
         theme: {
           color: "#6366f1",
         },
       };
 
-      // Create Razorpay instance
-      const razorpay =
-        new window.Razorpay(options);
+      const razorpay = new window.Razorpay(options);
 
-      // PAYMENT FAILED
-      razorpay.on(
-        "payment.failed",
-        function (response) {
-          console.error(
-            "Payment failed:",
-            response
-          );
+      razorpay.on("payment.failed", function (response) {
+        console.error("Payment failed:", response);
 
-          setMessage(
-            response.error?.description ||
-              "Payment failed. Please try again."
-          );
+        setMessage(
+          response.error?.description ||
+            "Payment failed. Please try again."
+        );
 
-          setLoading("");
-        }
-      );
+        setLoading("");
+      });
 
-      // Open Razorpay
       razorpay.open();
     } catch (error) {
-      console.error(
-        "Payment error:",
-        error
-      );
+      console.error("Payment error:", error);
 
       setMessage(
-        error.message ||
-          "Something went wrong."
+        error.message || "Something went wrong."
       );
 
       setLoading("");
@@ -276,166 +169,134 @@ function App() {
 
   return (
     <div className="app">
-
-      {/* ================= HEADER ================= */}
-
       <header className="header">
         <h1>LearnHub</h1>
 
         <nav>
-          <a href="#home">Home</a>
-          <a href="#plans">Plans</a>
+          <button onClick={() => setPage("home")}>
+            Home
+          </button>
+
+          <button onClick={() => setPage("video")}>
+            Video
+          </button>
+
+          <button onClick={() => setPage("plans")}>
+            Plans
+          </button>
         </nav>
       </header>
 
-      {/* ================= HERO ================= */}
+      {page === "home" && (
+        <main className="hero">
+          <p>ONLINE LEARNING PLATFORM</p>
 
-      <section
-        className="hero"
-        id="home"
-      >
-        <p>
-          ONLINE LEARNING PLATFORM
-        </p>
+          <h2>
+            Learn smarter.
+            <br />
+            Grow faster.
+          </h2>
 
-        <h2>
-          Learn smarter.
-          <br />
-          Grow faster.
-        </h2>
+          <p className="hero-text">
+            LearnHub is your modern video-learning platform
+            for courses, videos and educational content.
+          </p>
 
-        <p className="hero-text">
-          LearnHub is your modern
-          video-learning platform
-          for courses, videos and
-          educational content.
-        </p>
+          <button
+            className="hero-button"
+            onClick={() => setPage("plans")}
+          >
+            View Plans
+          </button>
+        </main>
+      )}
 
-        <a
-          href="#plans"
-          className="hero-button"
-        >
-          View Plans
-        </a>
-      </section>
+      {page === "video" && (
+        <main className="video-section">
+          <h2>Introduction to Modern Web Development</h2>
 
-      {/* ================= VIDEO ================= */}
+          <p>Watch our sample lesson.</p>
 
-      <section className="video-section">
+          <video
+            className="video"
+            controls
+            preload="metadata"
+            src="/video.mp4"
+          />
+          <button
+  onClick={() => {
+    const link = document.createElement("a");
+    link.href = "/video.mp4";
+    link.download = "LearnHub-video.mp4";
+    link.click();
+  }}
+>
+  Download Video
+</button>
+        </main>
+      )}
 
-        <h2>
-          Introduction to Modern Web
-          Development
-        </h2>
+      {page === "plans" && (
+        <main className="plans">
+          <p className="section-label">
+            SUBSCRIPTIONS
+          </p>
 
-        <p>
-          Watch our sample lesson.
-        </p>
+          <h2>Choose your learning plan</h2>
 
-        <video
-          className="video"
-          controls
-          preload="metadata"
-          src="/video.mp4"
-        />
+          <p className="section-description">
+            Select a plan to continue with LearnHub.
+          </p>
 
-      </section>
+          <div className="plans-container">
+            {plans.map((plan) => (
+              <div className="plan" key={plan.name}>
+                <h3>{plan.name}</h3>
 
-      {/* ================= PLANS ================= */}
+                <div className="price">
+                  ₹{plan.price}
 
-      <section
-        className="plans"
-        id="plans"
-      >
+                  {plan.price > 0 && (
+                    <span>/month</span>
+                  )}
+                </div>
 
-        <p className="section-label">
-          SUBSCRIPTIONS
-        </p>
-
-        <h2>
-          Choose your learning plan
-        </h2>
-
-        <p className="section-description">
-          Select a plan to continue
-          with Razorpay.
-        </p>
-
-        <div className="plans-container">
-
-          {plans.map((plan) => (
-
-            <div
-              className="plan"
-              key={plan.name}
-            >
-
-              <h3>
-                {plan.name}
-              </h3>
-
-              <div className="price">
-                ₹{plan.price}
-                <span>
-                  /month
-                </span>
-              </div>
-
-              <ul>
-                {plan.features.map(
-                  (feature) => (
-                    <li
-                      key={feature}
-                    >
+                <ul>
+                  {plan.features?.map((feature) => (
+                    <li key={feature}>
                       ✓ {feature}
                     </li>
-                  )
-                )}
-              </ul>
+                  ))}
+                </ul>
 
-              <button
-                onClick={() =>
-                  buyPlan(plan)
-                }
-                disabled={
-                  loading !== ""
-                }
-              >
-                {loading ===
-                plan.name
-                  ? "Opening Razorpay..."
-                  : `Choose ${plan.name}`}
-              </button>
-
-            </div>
-
-          ))}
-
-        </div>
-
-        {/* PAYMENT MESSAGE */}
-
-        {message && (
-          <div className="message">
-            {message}
+                <button
+                  onClick={() => buyPlan(plan)}
+                  disabled={loading !== ""}
+                >
+                  {loading === plan.name
+                    ? plan.price === 0
+                      ? "Selecting..."
+                      : "Opening Razorpay..."
+                    : plan.price === 0
+                    ? "Choose Free"
+                    : `Choose ${plan.name}`}
+                </button>
+              </div>
+            ))}
           </div>
-        )}
 
-      </section>
-
-      {/* ================= FOOTER ================= */}
+          {message && (
+            <div className="message">
+              {message}
+            </div>
+          )}
+        </main>
+      )}
 
       <footer>
-        <h3>
-          LearnHub
-        </h3>
-
-        <p>
-          Modern video-learning
-          platform.
-        </p>
+        <h3>LearnHub</h3>
+        <p>Modern video-learning platform.</p>
       </footer>
-
     </div>
   );
 }
