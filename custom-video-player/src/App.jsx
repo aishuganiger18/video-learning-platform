@@ -236,69 +236,27 @@ function App() {
         </main>
       )}
 
-      {page === "plans" && (
-        <main className="plans">
-          <p className="section-label">
-            SUBSCRIPTIONS
-          </p>
+{page === "video" && (
+  <main className="video-section">
 
-          <h2>Choose your learning plan</h2>
+    {/* video */}
+    {/* Download Video button */}
 
-          <p className="section-description">
-            Select a plan to continue with LearnHub.
-          </p>
+    {/* COMMENTS SECTION */}
+    <section className="comments-section">
+      <h2>Comments</h2>
 
-          <div className="plans-container">
-            {plans.map((plan) => (
-              <div className="plan" key={plan.name}>
-                <h3>{plan.name}</h3>
+      <div className="comment-box">
+        <textarea
+          placeholder="Write a comment..."
+          rows="4"
+        />
 
-                <div className="price">
-                  ₹{plan.price}
-
-                  {plan.price > 0 && (
-                    <span>/month</span>
-                  )}
-                </div>
-
-                <ul>
-                  {plan.features?.map((feature) => (
-                    <li key={feature}>
-                      ✓ {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={() => buyPlan(plan)}
-                  disabled={loading !== ""}
-                >
-                  {loading === plan.name
-                    ? plan.price === 0
-                      ? "Selecting..."
-                      : "Opening Razorpay..."
-                    : plan.price === 0
-                    ? "Choose Free"
-                    : `Choose ${plan.name}`}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {message && (
-            <div className="message">
-              {message}
-            </div>
-          )}
-        </main>
-      )}
-
-      <footer>
-        <h3>LearnHub</h3>
-        <p>Modern video-learning platform.</p>
-      </footer>
-    </div>
-  );
-}
-
-export default App;
+        <button type="button">
+          Post Comment
+        </button>
+      </div>
+    </section>
+    </main>
+</div>
+)}

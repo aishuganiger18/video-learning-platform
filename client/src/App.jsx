@@ -8,13 +8,16 @@ function App() {
 const [plans, setPlans] = useState([]);
 const [message, setMessage] = useState("");
 const [loading, setLoading] = useState("");
-const [activePlan, setActivePlan] = useState("Free");
+const [activePlan, setActivePlan] = useState(
+  localStorage.getItem("activePlan") || "Free"
+);
+const [comment, setComment] = useState("");
 
-  // Load plans from backend
+// Load plans from backend
   useEffect(() => {
     async function loadPlans() {
       try {
-        const response = await fetch(`${API_URL}/api/plans`);
+       const response = await fetch("http://localhost:5000/api/plans");
         const data = await response.json();
 
         console.log("Backend plans:", data);
@@ -23,7 +26,11 @@ const [activePlan, setActivePlan] = useState("Free");
           throw new Error("Unable to load plans");
         }
 
-        setPlans(data.plans);
+       const uniquePlans = Array.from(
+  new Map(data.plans.map((plan) => [plan.name, plan])).values()
+);
+
+setPlans(uniquePlans);
       } catch (error) {
         console.error("Plans error:", error);
         setMessage("Backend connection failed.");
@@ -57,7 +64,6 @@ const [activePlan, setActivePlan] = useState("Free");
 
       // Save selected plan
       localStorage.setItem("selectedPlan", plan.name);
-
       // FREE PLAN
       if (plan.price === 0) {
         setMessage("Free plan selected successfully!");
@@ -152,6 +158,7 @@ const [activePlan, setActivePlan] = useState("Free");
               );
             }
 setActivePlan(plan.name);
+localStorage.setItem("activePlan", plan.name);
             setMessage(
               `${plan.name} subscription activated successfully!`
             );
@@ -248,35 +255,33 @@ setActivePlan(plan.name);
           </button>
 
           <button
-            onClick={() => setPage("plans")}
-          >
-            Plans
-          </button>
-        </div>
-      </nav>
+  onClick={() => setPage("plans")}
+>
+  Plans
+</button>
 
+<button
+  onClick={() => setPage("downloads")}
+>
+  Downloads
+</button>
+</div>
+</nav>
       {/* HOME */}
       {page === "home" && (
         <main className="video-page">
-          <p className="label">
-            WELCOME TO LEARNHUB
-          </p>
+          <p className="label">WELCOME TO LEARNHUB</p>
 
-          <h1>
-            Learn. Practice. Grow.
-          </h1>
+          <h1>Learn. Practice. Grow.</h1>
 
           <p className="description">
-            Welcome to LearnHub, your online
-            learning platform for high-quality
+            Welcome to LearnHub, your online learning platform for high-quality
             educational videos.
           </p>
 
           <button
             className="primary-button"
-            onClick={() =>
-              setPage("video")
-            }
+            onClick={() => setPage("video")}
           >
             Start Learning
           </button>
@@ -286,165 +291,57 @@ setActivePlan(plan.name);
       {/* VIDEO */}
       {page === "video" && (
         <main className="video-page">
-          <p className="label">
-            FEATURED LESSON
-          </p>
+          <p className="label">FEATURED LESSON</p>
 
-          <h1>
-            Introduction to Modern Web Development
-          </h1>
+          <h1>Introduction to Modern Web Development</h1>
 
           <p className="description">
-            Watch our sample lesson and explore
-            the LearnHub learning experience.
+            Watch our sample lesson and explore the LearnHub learning experience.
           </p>
 
           <div className="video-container">
-            <video
-              controls
-              preload="metadata"
-              width="100%"
-            >
-              <source
-                src="/video.mp4"
-                type="video/mp4"
-              />
-
-              Your browser does not support
-              the video element.
+            <video controls preload="metadata" width="100%">
+              <source src="/video.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
             </video>
-
-<button
-  onClick={() => {
-    const plan = localStorage.getItem("selectedPlan") || "Free";
-
-    const limits = {
-      Free: 1,
-      Bronze: 5,
-      Silver: 10,
-      Gold: 20,
-    };
-
-    const today = new Date().toISOString().split("T")[0];
-
-    const savedDate = localStorage.getItem("downloadDate");
-    let downloadCount = Number(
-      localStorage.getItem("downloadCount") || 0
-    );
-
-    if (savedDate !== today) {
-      downloadCount = 0;
-      localStorage.setItem("downloadDate", today);
-      localStorage.setItem("downloadCount", "0");
-    }
-
-    if (downloadCount >= limits[plan]) {
-      alert(
-        `${plan} plan limit reached. You can download ${limits[plan]} video(s) per day.`
-      );
-      return;
-    }
-
-    const link = document.createElement("a");
-    link.href = "/video.mp4";
-    link.download = "LearnHub-video.mp4";
-    link.click();
-
-    downloadCount += 1;
-    localStorage.setItem("downloadCount", String(downloadCount));
-  }}
->
-  Download Video
-</button>
-
-</div>
+          </div>
         </main>
       )}
 
       {/* PLANS */}
       {page === "plans" && (
-        <main className="video-page">
+        <main className="plans-page">
+          <h1>Choose Your Plan</h1>
 
-          <p className="label">
-            SUBSCRIPTION PLANS
-          </p>
+          {plans.map((plan) => (
+            <div className="plan-card" key={plan.name}>
+              <h2>{plan.name}</h2>
+              <p>₹{plan.price}</p>
 
-          <h1>
-            Choose Your Plan
-          </h1>
-
-          <p className="description">
-            Select a plan that matches your
-            learning and download needs.
-          </p>
-
-          {/* PLAN CARDS */}
-          <div className="plans-container">
-
-            {plans.length === 0 ? (
-              <p>
-                Loading plans...
-              </p>
-            ) : (
-              plans.map((plan) => (
-                <div
-                  className="plan-card"
-                  key={plan.name}
-                >
-
-                  <h2>
-                    {plan.name}
-                  </h2>
-
-                  <h3>
-                    ₹{plan.price}
-                    {plan.price > 0 &&
-                      "/month"}
-                  </h3>
-
-                  <p>
-                    {plan.downloadLimit === 1
-                      ? "1 video/day"
-                      : plan.downloadLimit === 5
-                      ? "5 videos/day"
-                      : plan.downloadLimit === 10
-                      ? "10 videos/day"
-                      : plan.downloadLimit === 20
-                      ? "20 videos/day"
-                      : "Unlimited videos"}
-                  </p>
-
-                  <button
-                    className="primary-button"
-                    onClick={() =>
-                      choosePlan(plan)
-                    }
-                    disabled={
-                      loading !== ""
-                    }
-                  >
-                    {loading === plan.name
-                      ? plan.price === 0
-                        ? "Selecting..."
-                        : "Opening Razorpay..."
-                      : `Choose ${plan.name}`}
-                  </button>
-
-                </div>
-              ))
-            )}
-
-          </div>
-
-          {/* MESSAGE */}
-          {message && (
-            <div className="message">
-              {message}
+              <button
+                onClick={() => choosePlan(plan)}
+                disabled={loading === plan.name}
+              >
+                {loading === plan.name ? "Processing..." : "Choose Plan"}
+              </button>
             </div>
-          )}
+          ))}
 
+          {message && <p>{message}</p>}
         </main>
       )}
+
+      {/* DOWNLOADS */}
+      {page === "downloads" && (
+        <main className="video-page">
+          <p className="label">DOWNLOADS</p>
+          <h1>Your Downloads</h1>
+          <p className="description">
+            Your downloaded learning materials will appear here.
+          </p>
+        </main>
+      )}
+
     </div>
   );
 }

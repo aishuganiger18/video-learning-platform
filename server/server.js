@@ -1,4 +1,5 @@
 const express = require("express");
+const commentRoutes = require("./routes/commentRoutes");
 const cors = require("cors");
 const crypto = require("crypto");
 const dotenv = require("dotenv");
@@ -1180,7 +1181,7 @@ app.get("/api/auth/login-history/:email", (req, res) => {
     });
   }
 });
-
+app.use("/api/comments", commentRoutes);
 // ======================================================
 // 404 HANDLER
 // ======================================================
