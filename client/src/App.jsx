@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "https://video-learning-platform-1-8lf3.onrender.com";
 
 function App() {
  const [page, setPage] = useState("home");
@@ -17,7 +17,7 @@ const [comment, setComment] = useState("");
   useEffect(() => {
     async function loadPlans() {
       try {
-       const response = await fetch("http://localhost:5000/api/plans");
+       const response = await fetch(`${API_URL}/api/plans`);
         const data = await response.json();
 
         console.log("Backend plans:", data);
