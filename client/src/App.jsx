@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-const API_URL = "https://video-learning-platform-1-8lf3.onrender.com";
+const API_URL = "https://video-learning-platform-1-8lt3.onrender.com";
 
 function App() {
  const [page, setPage] = useState("home");
